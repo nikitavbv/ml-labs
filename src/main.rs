@@ -55,7 +55,7 @@ impl Net {
     
         let shape = npy.shape().to_vec();
         self.dataset_to_tensor(
-            npy.data().unwrap().map(|v| v.unwrap()).collect(), 
+            npy.data().unwrap().map(|v: Result<u8, _>| v.unwrap() as f32).collect(), 
             shape.iter().map(|v| *v as i64).collect(),
         )
     }
