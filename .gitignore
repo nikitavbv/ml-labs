@@ -1,3 +1,4 @@
 /target
 
 mnist.npz
+run_remote.sh
