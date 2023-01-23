@@ -15,7 +15,7 @@ pub struct Net {
     vs: VarStore,
 
     conv1: Conv2D,
-    conv1_batchnorm: BatchNorm,
+    // conv1_batchnorm: BatchNorm,
     linear1: Linear,
 }
 
@@ -24,19 +24,19 @@ impl Net {
         let vs = VarStore::new(Device::cuda_if_available());
         let root = vs.root();
 
-        let conv1 = nn::conv2d(&root, 28, 28, 3, ConvConfig {
+        let conv1 = nn::conv2d(&root, 1, 3, 3, ConvConfig {
             padding: 1,
             ..Default::default()
         });
-        let conv1_batchnorm = nn::batch_norm2d(&root, 256, Default::default());
+        //let conv1_batchnorm = nn::batch_norm2d(&root, 102, Default::default());
 
-        let linear1 = nn::linear(&root, 256, 10, Default::default());
+        let linear1 = nn::linear(&root, 28, 10, Default::default());
 
         Self {
             vs,
 
             conv1,
-            conv1_batchnorm,
+            //conv1_batchnorm,
             linear1,
         }
     }
@@ -44,7 +44,7 @@ impl Net {
     pub fn forward(&self, xs: &Tensor, train: bool) -> Tensor {
         xs
             .apply(&self.conv1)
-            .apply_t(&self.conv1_batchnorm, train)
+            //.apply_t(&self.conv1_batchnorm, train)
             .relu()
             .apply(&self.linear1)
             .softmax(0, Float)  
@@ -57,7 +57,7 @@ impl Net {
         self.dataset_to_tensor(
             npy.data().unwrap().map(|v: Result<u8, _>| v.unwrap() as f32).collect(), 
             shape.iter().map(|v| *v as i64).collect(),
-        )
+        ).view([-1, 1, 28 * 28])
     }
 
     fn ys_dataset_from_npz(&self, npz: &mut NpzArchive<BufReader<File>>, name: &str) -> Tensor {
