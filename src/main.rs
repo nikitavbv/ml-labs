@@ -15,7 +15,7 @@ pub struct Net {
     vs: VarStore,
 
     conv1: Conv2D,
-    // conv1_batchnorm: BatchNorm,
+    conv2: Conv2D,
     linear1: Linear,
 }
 
@@ -24,30 +24,28 @@ impl Net {
         let vs = VarStore::new(Device::cuda_if_available());
         let root = vs.root();
 
-        let conv1 = nn::conv2d(&root, 1, 3, 3, ConvConfig {
-            padding: 1,
-            ..Default::default()
-        });
-        //let conv1_batchnorm = nn::batch_norm2d(&root, 102, Default::default());
-
-        let linear1 = nn::linear(&root, 28, 10, Default::default());
+        let conv1 = nn::conv2d(&root, 1, 16, 3, Default::default());
+        let conv2 = nn::conv2d(&root, 16, 2, 3, Default::default());
+        
+        let linear1 = nn::linear(&root, 2 * 24 * 24, 10, Default::default());
 
         Self {
             vs,
 
             conv1,
-            //conv1_batchnorm,
+            conv2,
             linear1,
         }
     }
 
-    pub fn forward(&self, xs: &Tensor, train: bool) -> Tensor {
+    pub fn forward(&self, xs: &Tensor, _train: bool) -> Tensor {
         xs
             .apply(&self.conv1)
-            //.apply_t(&self.conv1_batchnorm, train)
             .relu()
+            .apply(&self.conv2)
+            .relu()
+            .view([-1, 2 * 24 * 24])
             .apply(&self.linear1)
-            .softmax(0, Float)  
     }
 
     fn xs_dataset_from_npz(&self, npz: &mut NpzArchive<BufReader<File>>, name: &str) -> Tensor {
@@ -57,29 +55,20 @@ impl Net {
         self.dataset_to_tensor(
             npy.data().unwrap().map(|v: Result<u8, _>| v.unwrap() as f32).collect(), 
             shape.iter().map(|v| *v as i64).collect(),
-        ).view([-1, 1, 28 * 28])
+        ).divide_scalar(255).view([-1, 1, 28, 28])
     }
 
     fn ys_dataset_from_npz(&self, npz: &mut NpzArchive<BufReader<File>>, name: &str) -> Tensor {
         let npy = npz.by_name(name).unwrap().unwrap();
 
-        // perform one-hot encoding
-        let mut data = Vec::new();
-        let mut len = 0;
-
-        for entry in npy.data().unwrap() {
-            let v: u8 = entry.unwrap();
-            let mut row = vec![0.0 as f32; 10];
-            row[v as usize] = 1.0;
-            data.append(&mut row);
-
-            len += 1;
-        }
-
-        self.dataset_to_tensor(data, vec![len, 10])
+        let shape = npy.shape().to_vec();
+        self.dataset_to_tensor(
+            npy.data().unwrap().map(|v: Result<u8, _>| v.unwrap() as i64).collect(), 
+            shape.iter().map(|v| *v as i64).collect(),
+        )
     }
 
-    pub fn dataset_to_tensor(&self, data: Vec<f32>, shape: Vec<i64>) -> Tensor {
+    pub fn dataset_to_tensor<T: tch::kind::Element>(&self, data: Vec<T>, shape: Vec<i64>) -> Tensor {
         Tensor::of_slice(&data)
             .reshape(&shape)
             .to_device(self.vs.device())
@@ -90,7 +79,7 @@ fn main() {
     let net = Net::new();
 
     let mut npz = npyz::npz::NpzArchive::open("./mnist.npz").unwrap();
-    let x_train = net.xs_dataset_from_npz(&mut npz, "x_train");
+    let x_train = net.xs_dataset_from_npz(&mut npz, "x_train"); // TODO: normalize, because max is 255!
     let y_train = net.ys_dataset_from_npz(&mut npz, "y_train");
 
     let x_test = net.xs_dataset_from_npz(&mut npz, "x_test");

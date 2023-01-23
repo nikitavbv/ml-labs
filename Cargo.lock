@@ -298,6 +298,7 @@ dependencies = [
 name = "ml-labs"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "ndarray",
  "ndarray-npy",
  "npyz",

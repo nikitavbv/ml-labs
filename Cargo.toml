@@ -8,3 +8,4 @@ ndarray-npy = { version = "0.8.1", features = ["npz", "compressed_npz"] }
 ndarray = "0.15.6"
 npyz = { version = "0.7.3", features = ["npz"] }
 tch = "0.10.1"
+anyhow = "1.0.68"
