@@ -26,7 +26,7 @@ fn y_dataset_from_npz(npz: &mut NpzArchive<BufReader<File>>, name: &str) -> Vec<
     dataset_to_tensor(
         npy.data().unwrap().map(|v| v.unwrap()).collect(),
         shape[0],
-        shape[1]
+        1
     )
 }
 
